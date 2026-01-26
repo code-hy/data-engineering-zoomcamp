@@ -16,3 +16,8 @@ serving_dir
 !week_6_stream_processing/avro_example/data/rides.csv
 *.parquet
 *.csv
+# service account keys
+*.json
+# local variable files (might contain secrets)
+*.tfvars
+

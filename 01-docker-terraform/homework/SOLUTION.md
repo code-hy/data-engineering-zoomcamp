@@ -1,6 +1,5 @@
 
-### SOLUTION.md
-```markdown
+
 # Module 1 Homework Solutions
 
 ## Question 1: Understanding Docker images
@@ -29,6 +28,11 @@ Answer: db:5432
 ## Question 3: Counting short trips
 **Question:** How many trips had a trip_distance of less than or equal to 1 mile?
 
+run below and it will open up the docker interactive postgres terminal
+
+```bash
+   docker exec -it postgres psql -U postgres -d ny_taxi 
+```
 **SQL Query:**
 
 ```sql
@@ -60,7 +64,7 @@ FROM ranked_trips
 WHERE distance_rank = 1;
 ```
 
-Answer: 2025-11-20
+Answer: 2025-11-14
 
 ## Question 5: Biggest pickup zone
 **Question:** Which was the pickup zone with the largest total_amount on November 18th, 2025?
@@ -68,9 +72,9 @@ Answer: 2025-11-20
 **SQL Query:**
 
 ```sql
-SELECT z."Zone" AS pickup_zone, SUM(t.total_amount) AS total_amount
+SELECT z.Zone AS pickup_zone, SUM(t.total_amount) AS total_amount
 FROM green_tripdata t
-JOIN taxi_zone_lookup z ON t."PULocationID" = z."LocationID"
+JOIN taxi_zone_lookup z ON t.pickup_location_id = z.location_id
 WHERE DATE(lpep_pickup_datetime) = '2025-11-18'
 GROUP BY pickup_zone
 ORDER BY total_amount DESC
@@ -85,24 +89,18 @@ Answer: East Harlem North
 **SQL Query:**
 
 ```sql
-WITH east_harlem_trips AS (
-  SELECT t.*, z."Zone" AS dropoff_zone
-  FROM green_tripdata t
-  JOIN taxi_zone_lookup z ON t."DOLocationID" = z."LocationID"
-  WHERE t."PULocationID" = (
-    SELECT "LocationID"
-    FROM taxi_zone_lookup
-    WHERE "Zone" = 'East Harlem North'
-  )
-  AND DATE(lpep_pickup_datetime) BETWEEN '2025-11-01' AND '2025-11-30'
-)
-SELECT dropoff_zone, SUM(tip_amount) AS total_tip
-FROM east_harlem_trips
-GROUP BY dropoff_zone
-ORDER BY total_tip DESC
+SELECT z.Zone, MAX(tip_amount) AS max_tip
+FROM green_tripdata t
+JOIN taxi_zone_lookup z ON t.dropoff_location_id = z.location_id
+JOIN taxi_zone_lookup pu ON t.pickup_location_id = pu.Location_id
+WHERE pu.Zone = 'East Harlem North'
+  AND t.lpep_pickup_datetime >= '2025-11-01' 
+  AND t.lpep_pickup_datetime < '2025-12-01'
+GROUP BY z.Zone
+ORDER BY max_tip DESC
 LIMIT 1;
 ```
-Answer: JFK Airport
+Answer: Yorkville West with max tip of $81.89
 
 ## Question 7: Terraform Workflow
 **Question:** Which sequence describes the workflow for:
@@ -128,16 +126,14 @@ Create tables:
 ```sql
 -- Green taxi trips table
 CREATE TABLE green_tripdata (
-    -- Define your schema based on the parquet file
-    -- Example columns (adjust as needed):
     vendor_id INTEGER,
     lpep_pickup_datetime TIMESTAMP,
     lpep_dropoff_datetime TIMESTAMP,
-    store_and_fwd_flag VARCHAR,
-    rate_code_id INTEGER,
+    store_and_fwd_flag VARCHAR(1),
+    rate_code_id NUMERIC,
     pickup_location_id INTEGER,
     dropoff_location_id INTEGER,
-    passenger_count INTEGER,
+    passenger_count NUMERIC,
     trip_distance NUMERIC,
     fare_amount NUMERIC,
     extra NUMERIC,
@@ -147,9 +143,10 @@ CREATE TABLE green_tripdata (
     ehail_fee NUMERIC,
     improvement_surcharge NUMERIC,
     total_amount NUMERIC,
-    payment_type INTEGER,
-    trip_type INTEGER,
-    congestion_surcharge NUMERIC
+    payment_type NUMERIC,
+    trip_type NUMERIC,
+    congestion_surcharge NUMERIC,
+    cbd_congestion_fee NUMERIC
 );
 ```
 ```sql
@@ -168,6 +165,29 @@ Import data (example using psql):
 ```
 
 # For parquet files, you might need to convert to CSV first or use a tool like pandas
+```sql
+\q
+```
+
+```bash
+# Convert to CSV
+python3 -c "
+import pandas as pd
+df = pd.read_parquet('green_tripdata_2025-11.parquet')
+df.to_csv('green_tripdata_2025-11.csv', index=False)
+"
+
+# Copy to container
+docker cp green_tripdata_2025-11.csv postgres:/var/lib/postgresql/data/
+
+# Re-enter psql
+docker exec -it postgres psql -U postgres -d ny_taxi
+```
+
+
+
+
+
 ## Terraform Configuration Example
 main.tf:
 
