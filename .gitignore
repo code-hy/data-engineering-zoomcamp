@@ -20,4 +20,4 @@ serving_dir
 *.json
 # local variable files (might contain secrets)
 *.tfvars
-
+*.tf 
