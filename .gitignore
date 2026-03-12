@@ -21,3 +21,9 @@ serving_dir
 # local variable files (might contain secrets)
 *.tfvars
 *.tf 
+
+.bruin.yml
+logs/runs
+logs/*.log
+__pycache__/
+*.py[cod]
